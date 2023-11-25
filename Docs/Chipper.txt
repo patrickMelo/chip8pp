@@ -1,0 +1,276 @@
+Chipper V1.12 is a simple assembler for the HP48SX Chip-8 language.
+
+
+Written by Christian Egeberg (egeberg@solan.unit.no) 2/11 .. 7/11-'90,
+using Turbo Pascal V5.5, and Turbo Debugger V2.0 in 386 virtual mode.
+
+
+In order to use Chipper V1.12 you need the following:
+
+    *   An IBM compatible PC, preferably with 512k or more.
+    *   A Hewlett Packard 48SX Calculator.
+    *   A PC to HP48SX serial cable.
+    *   A Kermit compatible PC based communication program.
+    *   The CHIP-48 interpreter for HP48SX.
+
+
+CHIP-48 is a video game language interpreter written by Andreas Gustafsson
+(gson@niksula.hut.fi). It utilizes the original CHIP-8 instruction set
+commonly used by RCA CDP1802 based home computers in the late 1970's.
+CHIP-48 should be available by anonymous ftp from vega.hut.fi, directory
+/pub/misc/hp48sx/asap.
+
+
+CHIP-48 programs have access to 4k bytes of memory, addressed from #000 to
+#FFF. The programs start at address #200, because of the memory requirements
+of the original CHIP-8 interpreter. Instructions are 16 bits long and start
+at even memory locations.
+
+
+CHIP-48 has 16 general registers, named V0, V1, V2, ... , VE, VF. These are
+8 bits wide. The VF register works as carry flag and collision indicator,
+and is modified by certain instructions. A 16 bit I register also exists.
+The lower 12 bits of this register are typically used as a memory pointer.
+A delay timer and a sound timer is provided as well. These are 8 bits wide
+and decrement around 60 times per second, until a value of 0 is reached.
+The HP48SX beeper will buzz until the sound timer reaches 0.
+
+
+CHIP-48 screen resolution is 64 pixels horisontal and 32 pixels vertical.
+Screen origin is the upper left corner. A sprite is 8 pixels wide and from 1
+to 15 pixels high. That is also from 1 to 15 bytes large. Upper row in the
+first byte, leftmost pixel in the most significant bit. Sprites are XOR-ed
+onto the background. If this causes any pixel to be erased, VF is set to
+#01, else VF will be #00.
+
+
+CHIP-48 programs may access 16 keys numbered from #0 to #F. The HP48SX
+keyboard mapping is shown below:
+
+    ( 7 )  ->  #1    ( 8 )  ->  #2    ( 9 )  ->  #3    ( / )  ->  #C
+    ( 4 )  ->  #4    ( 5 )  ->  #5    ( 6 )  ->  #6    ( * )  ->  #D
+    ( 1 )  ->  #7    ( 2 )  ->  #8    ( 3 )  ->  #9    ( - )  ->  #E
+    ( 0 )  ->  #A    ( . )  ->  #0    ( _ )  ->  #B    ( + )  ->  #F
+
+
+The following table contains valid CHIP-48 instruction codes and their
+syntax in Chipper V1.12. NNN indicates a 12 bit address. KK is an 8 bit
+constant. X and Y denote 4 bit register numbers. Hexadecimal characters
+represent themselves. WordExpr means an expression resulting in a 16 bit
+constant. AddrExpr is an expression resulting in a 12 bit address. ByteExpr
+results in an 8 bit constant, NibbleExpr makes a 4 bit constant, and Expr is
+a general expression. Char is an ASCII character. String is a sequence of
+ASCII characters. Text in curly brackets is optional. Instruction codes are
+written most significant byte first, least significant byte last.
+
+    #0NNN  SYS   AddrExpr            ; Call 1802 code at NNN (not HP48SX)
+    #00E0  CLS                       ; Clear display
+    #00EE  RET                       ; Return from subroutine (16 levels)
+    #1NNN  JP    AddrExpr            ; Jump to NNN
+    #2NNN  CALL  AddrExpr            ; Call subroutine at NNN (16 levels)
+    #3XKK  SE    VX, ByteExpr        ; Skip next instruction if VX = KK
+    #4XKK  SNE   VX, ByteExpr        ; Skip next instruction if VX <> KK
+    #5XY0  SE    VX, VY              ; Skip next instruction if VX = VY
+    #6XKK  LD    VX, ByteExpr        ; VX := KK
+    #7XKK  ADD   VX, ByteExpr        ; VX := VX + KK
+    #8XY0  LD    VX, VY              ; VX := VY, VF updates
+    #8XY1  OR    VX, VY              ; VX := VX OR VY, VF updates
+    #8XY2  AND   VX, VY              ; VX := VX AND VY, VF updates
+    #8XY3  XOR   VX, VY              ; VX := VX XOR VY, VF updates
+    #8XY4  ADD   VX, VY              ; VX := VX + VY, VF := carry
+    #8XY5  SUB   VX, VY              ; VX := VX - VY, VF := NOT borrow
+    #8XY6  SHR   VX {, VY}           ; VX := VX SHR 1, VF := carry
+    #8XY7  SUBN  VX, VY              ; VX := VY - VX, VF := NOT borrow
+    #8XYE  SHL   VX {, VY}           ; VX := VX SHL 1, VF := carry
+    #9XY0  SNE   VX, VY              ; Skip next instruction if VX <> VY
+    #ANNN  LD    I, AddrExpr         ; I := NNN
+    #BNNN  JP    V0, AddrExpr        ; Jump to NNN + V0
+    #CXKK  RND   VX , ByteExpr       ; VX := random AND KK
+    #DXYN  DRW   VX, VY, NibbleExpr  ; Draw N byte sprite from [I] at VX, VY
+                                     ; ... VF := collision
+    #EX9E  SKP   VX                  ; Skip next instruction if key VX down
+    #EXA1  SKNP  VX                  ; Skip next instruction if key VX up
+    #FX07  LD    VX, DT              ; VX := delaytimer
+    #FX0A  LD    VX, K               ; VX := key, wait for keypress
+    #FX15  LD    DT, VX              ; Delaytimer := VX
+    #FX18  LD    ST, VX              ; Soundtimer := VX
+    #FX1E  ADD   I, VX               ; I := I + VX
+    #FX29  LD    F, VX               ; Point I to 5 byte sprite char for VX
+    #FX33  LD    B, VX               ; Store BCD of VX in [I], [I+1], [I+2]
+    #FX55  LD    [I], VX             ; Store V0 .. VX in [I] .. [I+X]
+    #FX65  LD    VX, [I]             ; Read V0 .. VX from [I] .. [I+X]
+
+
+Additional Chipper V1.12 directives are:
+
+    SYMBOL  =        Expr              ;  Assign value to symbol
+    SYMBOL  EQU      Expr              ;  Assign value to symbol
+            DB       ByteExpr {, ...}  ;  Define byte(s) at current address
+            DW       WordExpr {, ...}  ;  Define word(s) at current address
+            DA       String            ;  Define string at current address
+            DS       ByteExpr          ;  Define ByteExpr uninitialized
+                                       ;  ... bytes at current address
+            ORG      AddrExpr          ;  Set current address to AddrExpr
+            END                        ;  This directive is ignored
+            INCLUDE  SourceFileName    ;  Includes one more sourcefile
+
+
+Chipper V1.12 accepts one label, or symbol, per line of source. This should
+start with an alphabetic character, and not contain non alphanumeric
+characters, otherwise the expression parser may get a bit confused. All
+symbols will be converted to upper case, and may be prefixed by an
+underscore character and / or suffixed by a colon. These will be stripped
+off before the symbol is used. Each symbol contains a 32 bit signed integer
+value, set to current address, unless defined by the = or EQU directives.
+
+
+A symbol name or string containing lower case characters or non alphanumeric
+characters (not in symbol names, I have told you that), should be contained
+within apostrophes. Two apostrophes following eachother will produce one
+resultant apostrophe. Some string examples:
+
+    '11/6-'68'           ;  Is an unterminated string starting with 11/6-68
+    11/6-''68            ;  Evaluates to 11/6-'68
+    Christian Egeberg    ;  Evaluates to CHRISTIAN EGEBERG
+    'Christian Egeberg'  ;  Evaluates to Christian Egeberg
+    This, is a test      ;  Evaluates to THIS
+                         ;  ... and      IS A TEST
+    This',' is a test    ;  Evaluates to THIS, IS A TEST
+    'This, is a test'    ;  Evaluates to This, is a test
+    ''''                 ;  Evaluates to '''
+    ''                   ;  Evaluates to '
+
+
+A symbol primitive may be one of the following:
+
+    SymbolName         ;  for instance LOOP
+    DecimalValue       ;  for instance 1106
+    #HexadecimalValue  ;  for instance #452
+    $BinaryValue       ;  for instance $10001010010
+    @OctalValue        ;  for instance @2122
+    "Character         ;  for instance "'c'
+    ?                  ;  This is always assigned to current address
+
+
+An expression may consist of symbol primitives and the following operators.
+Horisontal lines denote different priorities. Operators sharing priority
+level are evaluated left to right:
+
+    (  ;  Start parentheses expression
+    )  ;  End of parentheses expression
+    -----------------------------------
+    +  ;  Unary plus sign
+    -  ;  Unary minus sign
+    ~  ;  Bitwise NOT operator
+    -----------------------------------
+    !  ;  Power of operator
+    <  ;  Shift left number of bits
+    >  ;  Shift right number of bits
+    -----------------------------------
+    *  ;  Multiply
+    /  ;  Divide
+    -----------------------------------
+    +  ;  Add
+    -  ;  Subtract
+    -----------------------------------
+    &  ;  Bitwise AND operator
+    |  ;  Bitwise OR operator
+    ^  ;  Bitwise XOR operator
+    -----------------------------------
+    \  ;  Low priority divide
+    %  ;  Modulus operator
+
+Some expression examples:
+
+    (? + 15 \ 16) * 16         ;  Is a paragraph (16 bytes) alignment
+    "'c' + @2 % #20            ;  Resolves to 5
+    -3 * -( -7 + ~3)           ;  Resolves to -33
+    -3 * -( -7 + ~3) & #FF     ;  Resolves to 223
+    ( 2 + 1 )! 2 ^ $1101 > 2   ;  Resolves to 10
+    (2+1)!2^$1101>2            ;  Resolves to 10
+    TABLESTART + 4 * ITEMSIZE  ;  Resolves
+
+
+Remarks are prefixed by semicolons, as in the above examples. Note that
+Chipper V1.12 performs a word alignment after every line of source code.
+This means that for instance two single parameter DB directives in rapid
+succession will have an uninitialized separator byte between them. Avoid
+this by defining any multiple of two bytes per DB directive.
+
+
+A note concerning the CHIP-48 instruction set. The LD VX, [I] and LD [I], VX
+instructions will change the value of the I register if VX is different from
+V0. Actually, I think it is set to the address of the last byte / register
+read or written. This may lead to rather obscure bugs. It took me a day's
+worth of debugging to figure out why Blinky died, moving upwards on the
+second screen, after updating a 16 bit score counter in memory... I had
+overwritten the first byte of the Blinky facing up sprite definition, and
+thus caused a collision detect.
+
+
+Chipper V1.12 fatal error messages:
+
+    No source file found         ;  Incorrect source file name
+    Unable to open file          ;  Disk problem, no write access
+    Outside legal address range  ;  Current address outside #200 .. #FFF
+
+
+Chipper V1.12 warning messages:
+
+    Incorrect number of parameters       ;  Too few or too many parameters
+    No directive found                   ;  Two symbols defined on same line
+    No symbol associated                 ;  = or EQU without a symbol
+    Attempt to redefine existing symbol  ;  Symbol already exists, discarded
+    Badly defined parameter              ;  Undefined symbol or bad syntax
+                                         ;  ... in expression
+    Parameter out of range               ;  Value too large or too small
+    Register not found                   ;  Register operand expected
+    Illegal register                     ;  Different register required
+    Internal data structure mismatch     ;  C. Egeberg is a lousy programmer
+
+
+Chipper V1.12 should be invoked with:
+
+    CHIPPER sourcefilename destinationfilename listfilename
+
+or just:
+
+    CHIPPER
+
+which will prompt for filenames. Default file extensions are .CHP, nothing
+and .LST. Destination and listfiles will by default be named after source.
+The destination file is a binary download mode HP48SX string. Kermit it to
+the calculator, put the string on the stack, and run CHIP-48. The listfile
+will contain all errors and warnings, hexdump of all generated instructions,
+and a complete symboltable. The format is rather simple.
+
+
+This document contains some information more or less copied directly off
+the CHIP-48 documentation by Andreas Gustafsson, who has done a great job,
+hacking for the HP48SX. The Chipper V1.12 syntax was inspired by the
+SYZYGY game listing posted to comp.sys.handhelds by Roy Trevino. SYZYGY
+is the best CHIP-48 game so far...
+
+
+CHIP-48 is (C) Copyright 1990 Andreas Gustafsson.
+Chipper is (C) Copyright 1990 Christian Egeberg.
+
+    Noncommercial distribution allowed, provided that copyright messages
+    are preserved, and any modified versions are clearly marked as such.
+
+    CHIP-48 and, because of that, programs written in Chipper make use of
+    undocumented low-level features of the HP48SX calculator. They may or
+    may not cause loss of data, excessive battery drainage, and / or
+    damage to the calculator hardware. The authors take no responsibility
+    whatsoever for any damage caused by the use of these programs.
+
+    Chipper does all its I/O on the PC through the Turbo Pascal FExpand(),
+    Assign(), ReSet(), ReWrite(), Read(), Write(), Eof() and Close() run
+    time library functions, but the author takes no responsibility for
+    loss of data, damage to any PC hardware, nor strange incidents caused
+    by the use of this program.
+
+    This software is provided "as is" and without any express or implied
+    warranties, including, but not limited to, the implied warranties of
+    merchantability and fitness for a particular purpose.
+

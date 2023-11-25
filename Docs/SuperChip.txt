@@ -1,0 +1,62 @@
+SUPER-CHIP v1.0
+===============
+
+... a modified version of the CHIP-8 game interpreter originally
+made by Andreas Gustafsson.
+
+S-CHIP offers:
+
+- full screen resolution in new extended screen mode
+- downward compability (you can run your old CHIP games)
+- faster execution in extended mode
+- a larger 16x16 sprite available
+- new, larger fonts for scores
+- you can pass information to and from a S-CHIP program
+- programmable exit from the S-CHIP interpreter possible
+- no need to turn off the clock
+- it will always start
+
+What can this mean to the next generation of CHIP games?
+
+- Higher resolution and faster action.
+
+- One can make a strategy game in RPL with combat parts programmed
+in S-CHIP. When one of the players has won the combat, the S-CHIP
+program can exit and pass the results on to the main RPL program.
+
+- High score screens etc can be done in RPL and the action parts
+in S-CHIP.
+
+
+Description of new functions
+============================
+
+Hex      Chipper            Description
+---      -------            -----------
+
+00FF     DB #00, #FF        Turn extended screen mode ON, enabling
+                            higher speed and full screen (64x128)
+                            resolution. Default is OFF.
+
+00FE     DB #00, #FE        Turn extended screen mode OFF.
+
+00FD     DB #00, #FD        Exit from S-CHIP environment
+         
+DXY0     DRW VX, VY, 0      Draw 16x16 pixels sprite from [I] at
+                            VX, VY. Sprite is stored in 32 bytes, 2
+                            bytes per row with leftmost byte last.
+
+FX30     DB #FX, #30        Points I to 10-byte sprite for the
+                            digit in VX (0..9).
+ 
+FX75     DB #FX, #75        Store V0..VX in RPL user flags (X<=7)
+
+FX85     DB #FX, #85        Read V0..VX from RPL user flags (X<=7)
+
+The "Chipper" column is the necessary commands for the Chipper
+assembler written by Christian Egeberg. I highly recommend this
+program!
+
+For a description of the standard CHIP instructions, refer to the
+original CHIP-48 documentation or the documentation of Chipper.
+These should be available at funic.funet.fi for anonymous ftp.
